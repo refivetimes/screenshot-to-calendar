@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Screenshot to Calendar",
+  "version": "1.0.0",
+  "description": "Paste a screenshot or type a description to instantly create an Apple Calendar event.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Screenshot to Calendar"
+  },
+  "permissions": [],
+  "host_permissions": [
+    "http://localhost:54321/*"
+  ]
+}
