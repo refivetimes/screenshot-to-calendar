@@ -25,6 +25,25 @@ function escapeAppleScript(str) {
   return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
+export async function listCalendars() {
+  const script = `
+tell application "Calendar"
+  set calNames to {}
+  repeat with c in calendars
+    set end of calNames to name of c
+  end repeat
+  set AppleScript's text item delimiters to "||"
+  return calNames as text
+end tell`;
+
+  try {
+    const { stdout } = await execFileAsync("osascript", ["-e", script]);
+    return stdout.trim().split("||").map((n) => n.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export async function createCalendarEvent(eventData) {
   const {
     title,
@@ -33,8 +52,19 @@ export async function createCalendarEvent(eventData) {
     location,
     notes,
     isAllDay,
-    calendar = "Home",
   } = eventData;
+
+  const configuredDefaultCalendar = process.env.DEFAULT_CALENDAR?.trim() || "Home";
+  let calendar = eventData.calendar || configuredDefaultCalendar;
+
+  const availableCalendars = await listCalendars();
+  if (availableCalendars.length > 0 && !availableCalendars.includes(calendar)) {
+    if (availableCalendars.includes(configuredDefaultCalendar)) {
+      calendar = configuredDefaultCalendar;
+    } else {
+      calendar = availableCalendars[0];
+    }
+  }
 
   const escapedTitle = escapeAppleScript(title);
   const escapedLocation = escapeAppleScript(location);

@@ -2,7 +2,7 @@
 
 A Chrome extension + local server that lets you paste a screenshot or type a natural language description to instantly create an Apple Calendar event. No intermediate confirmation steps — screenshot in, event out.
 
-**Powered by Google Gemini 2.0 Flash (free tier) and macOS AppleScript.**
+**Powered by Google Gemini Flash and macOS AppleScript.**
 
 ## Prerequisites
 
@@ -19,6 +19,8 @@ cp .env.example .env
 ```
 
 Open `.env` and replace `your_api_key_here` with your Gemini API key.
+Optionally set `GEMINI_MODEL` to force a specific model; by default, the server auto-falls back across supported Flash models.
+Optionally set `DEFAULT_CALENDAR` (e.g. `Work`) to choose which Apple Calendar to use by default.
 
 ### 2. Install and start the server
 
@@ -78,4 +80,4 @@ The extension will show a confirmation with the event title, date/time, and loca
 - Relative dates work: "tomorrow", "next Friday", "in 3 days"
 - Location and notes are extracted automatically when present
 - Events default to 1 hour if no end time is specified
-- Events are added to the **Home** calendar by default
+- Events are added to `DEFAULT_CALENDAR` if set, otherwise **Home**

@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { parseEventWithGemini } from "./gemini.js";
-import { createCalendarEvent } from "./calendar.js";
+import { createCalendarEvent, listCalendars } from "./calendar.js";
 
 dotenv.config({ path: "../.env" });
 
@@ -14,6 +14,7 @@ app.use(express.json({ limit: "20mb" }));
 
 app.post("/create-event", async (req, res) => {
   const { type, content } = req.body;
+  const defaultCalendar = process.env.DEFAULT_CALENDAR?.trim() || "Home";
 
   if (!type || !content) {
     return res.status(400).json({ success: false, error: "Missing type or content" });
@@ -24,7 +25,8 @@ app.post("/create-event", async (req, res) => {
   }
 
   try {
-    const eventData = await parseEventWithGemini(type, content);
+    const calendars = await listCalendars();
+    const eventData = await parseEventWithGemini(type, content, calendars, defaultCalendar);
     const result = await createCalendarEvent(eventData);
     res.json({ success: true, event: result });
   } catch (err) {
