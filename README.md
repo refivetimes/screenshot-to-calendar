@@ -87,19 +87,23 @@ Type a description or paste a screenshot. A few examples:
 
 Describe what you want to change and which events to target. A few examples:
 
-- *"Add location Lloyd Hall Boathouse to all events called 2026 Learn to Row"*
 - *"Change notes for Book Club to bring your own copy"*
 - *"Update title of tomorrow's standup to Sprint Planning"*
+- *"Move all events called 2026 Learn to Row to Lloyd Hall Boathouse"*
+- *"Add location Print Studio to any events in March and April containing riso, screenprinting, or basketweaving"* — matches any of the listed keywords independently
+- *"Add Zoom link to all portfolio review events that don't already have notes"* — skips events where notes are already set
+- *"Set time to 6pm for all yoga events in March that are currently all-day"* — only updates all-day events, leaves timed events untouched
 
-You can scope updates by calendar or date range naturally — e.g. *"...for all book club events in April"*.
+You can scope updates by calendar or date range naturally — e.g. *"...for all book club events in April"*. You can also follow up a create action with *"add location X to the events I just added"* and the previous batch is remembered automatically.
 
 The extension will report how many events were updated and list the matched event titles.
 
 ### Tips
 
-- Take a screenshot with **⌘⌃⇧4** (Cmd+Ctrl+Shift+4 -- copies to clipboard), then open the extension and **⌘V** to paste — fastest workflow
+- Take a screenshot with **⌘⌃⇧4** (copies to clipboard), then open the extension and **⌘V** to paste — fastest workflow
 - Relative dates work: "tomorrow", "next Friday", "in 3 days"
 - Location and notes are extracted automatically when present
 - Events default to 1 hour if no end time is specified
 - Events are added to `DEFAULT_CALENDAR` if set, otherwise **Home**
-- For updates, title matching is partial and case-insensitive — "learn to row" matches "2026 Learn to Row"
+- For updates, title matching is partial — multiple keywords are matched independently with OR logic
+- Exclusion conditions work naturally: "that don't already have a location", "only all-day events", "events without notes"
