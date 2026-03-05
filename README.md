@@ -97,7 +97,7 @@ The extension will report how many events were updated and list the matched even
 
 ### Tips
 
-- Take a screenshot with **⌘⇧4**, then open the extension and **⌘V** to paste — fastest workflow
+- Take a screenshot with **⌘⌃⇧4** (Cmd+Ctrl+Shift+4 -- copies to clipboard), then open the extension and **⌘V** to paste — fastest workflow
 - Relative dates work: "tomorrow", "next Friday", "in 3 days"
 - Location and notes are extracted automatically when present
 - Events default to 1 hour if no end time is specified
