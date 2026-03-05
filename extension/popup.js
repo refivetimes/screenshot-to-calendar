@@ -176,7 +176,8 @@ function showCreateResult(events) {
 
 function showUpdateResult(data) {
   if (data.updated === 0) {
-    setStatus("error", `No events found matching "${data.match.title}"`);
+    const keywords = (data.match.titles || [data.match.title]).join(", ");
+    setStatus("error", `No events found matching "${keywords}"`);
     return;
   }
 

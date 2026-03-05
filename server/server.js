@@ -12,6 +12,8 @@ const PORT = 54321;
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
+let lastBatch = null;
+
 app.post("/create-event", async (req, res) => {
   const { type, content } = req.body;
   const defaultCalendar = process.env.DEFAULT_CALENDAR?.trim() || "Home";
@@ -26,10 +28,11 @@ app.post("/create-event", async (req, res) => {
 
   try {
     const calendars = await listCalendars();
-    const parsed = await parseEventWithGemini(type, content, calendars, defaultCalendar);
+    const parsed = await parseEventWithGemini(type, content, calendars, defaultCalendar, lastBatch);
 
     if (parsed.action === "update") {
       const result = await updateCalendarEvents(parsed.match, parsed.update);
+      lastBatch = { action: "update", titles: result.titles, time: new Date().toISOString() };
       res.json({
         success: true,
         action: "update",
@@ -43,6 +46,7 @@ app.post("/create-event", async (req, res) => {
       for (const eventData of parsed.events) {
         results.push(await createCalendarEvent(eventData));
       }
+      lastBatch = { action: "create", titles: results.map((r) => r.title), time: new Date().toISOString() };
       res.json({ success: true, action: "create", events: results });
     }
   } catch (err) {

@@ -127,7 +127,7 @@ end tell`;
 }
 
 export async function updateCalendarEvents(match, updates) {
-  const escapedTitle = escapeAppleScript(match.title);
+  const titles = match.titles || [match.title];
 
   const setLines = [];
   if (updates.title !== undefined)
@@ -145,8 +145,13 @@ export async function updateCalendarEvents(match, updates) {
     throw new Error("No fields to update");
   }
 
+  const titleConditions = titles
+    .map((t) => `summary contains "${escapeAppleScript(t)}"`)
+    .join(" or ");
+  const titleClause = titles.length > 1 ? `(${titleConditions})` : titleConditions;
+
   let dateSetup = "";
-  let whoseClause = `summary contains "${escapedTitle}"`;
+  let whoseClause = titleClause;
 
   if (match.startAfter) {
     dateSetup += `    set searchStart to date "${formatAppleScriptDate(match.startAfter)}"\n`;
@@ -164,6 +169,31 @@ export async function updateCalendarEvents(match, updates) {
     calScope = "set calList to calendars";
   }
 
+  const skipIfSet = match.skipIfSet || [];
+  const fieldToProperty = { location: "location", notes: "description" };
+  const skipChecks = skipIfSet
+    .filter((f) => fieldToProperty[f] || f === "time")
+    .map((f) => {
+      if (f === "time") {
+        return "if allday event of evt is false then set shouldSkip to true";
+      }
+      const prop = fieldToProperty[f];
+      return `if ${prop} of evt is not "" and ${prop} of evt is not missing value then set shouldSkip to true`;
+    });
+
+  let innerBlock;
+  if (skipChecks.length > 0) {
+    innerBlock = `set shouldSkip to false
+            ${skipChecks.join("\n            ")}
+            if shouldSkip is false then
+                ${setLines.join("\n                ")}
+                set end of updatedNames to summary of evt
+            end if`;
+  } else {
+    innerBlock = `${setLines.join("\n            ")}
+            set end of updatedNames to summary of evt`;
+  }
+
   const script = `
 tell application "Calendar"
     set updatedNames to {}
@@ -171,8 +201,7 @@ ${dateSetup}    ${calScope}
     repeat with cal in calList
         set evts to (every event of cal whose ${whoseClause})
         repeat with evt in evts
-            ${setLines.join("\n            ")}
-            set end of updatedNames to summary of evt
+            ${innerBlock}
         end repeat
     end repeat
     set AppleScript's text item delimiters to "||"

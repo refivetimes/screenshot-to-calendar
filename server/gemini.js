@@ -17,7 +17,7 @@ function getClient() {
   return genAI;
 }
 
-function buildSystemPrompt(calendarNames, defaultCalendar) {
+function buildSystemPrompt(calendarNames, defaultCalendar, lastBatch) {
   const calendarLine = calendarNames.length > 0
     ? `Available calendars: ${calendarNames.join(", ")}. You MUST pick one of these exact names for the "calendar" field. If unsure, use "${defaultCalendar}".`
     : `Default calendar name: "${defaultCalendar}".`;
@@ -58,10 +58,11 @@ Return:
 {
   "action": "update",
   "match": {
-    "title": "string — search term to find in event titles (partial match)",
+    "titles": ["array of strings — one or more keywords to search for in event titles. Each keyword is matched independently (OR logic). Use short, distinct keywords that will reliably appear in the target event titles. e.g. [\"riso\", \"screenprinting\", \"basketweaving\"]"],
     "calendar": "string or null — limit to a specific calendar, or null for all calendars",
     "startAfter": "string or null — ISO 8601, only match events starting after this date",
-    "startBefore": "string or null — ISO 8601, only match events starting before this date"
+    "startBefore": "string or null — ISO 8601, only match events starting before this date",
+    "skipIfSet": "array of field names or null — skip events where these fields already have a value. Valid fields: \"location\", \"notes\", \"time\". Use when the user says things like \"that don't already have a location\", \"only events without notes\", \"events missing a location\", \"only all-day events\", \"events that don't have a time set\", etc. Use \"time\" to target only all-day events (skips events that already have a specific time)."
   },
   "update": {
     "title": "string — new title (omit if not changing)",
@@ -73,20 +74,20 @@ Return:
 }
 Only include fields in "update" that the user actually wants to change.
 
-== RULES ==
+${lastBatch ? `== LAST BATCH ==\nThe most recent action was "${lastBatch.action}" at ${lastBatch.time}. Event titles: ${JSON.stringify(lastBatch.titles)}.\nIf the user refers to "the events I just added", "the last batch", "those events", etc., extract keywords from these titles for the "titles" match array.\n` : ""}== RULES ==
 - Resolve relative dates (e.g. "tomorrow", "next Friday") relative to today's date.
 - For create: if only a date with no time, set isAllDay to true.
 - For create: if a duration is mentioned, calculate endDate from startDate.
 - For create: if no end time or duration, default to 1 hour after start.
 - For create: expand recurring patterns (e.g. "every Friday at 6pm in March") into individual events.
 - For create: if a screenshot shows multiple events, extract all of them.
-- For update: use a title match string that best identifies the target events.
+- For update: extract distinct, specific keywords from the user's description for title matching. If the user mentions multiple event types, use one keyword per type.
 - For update: only include fields in "update" that should be changed.
 - Return ONLY the JSON object, nothing else.`;
 }
 
-export async function parseEventWithGemini(type, content, calendarNames = [], defaultCalendar = "Home") {
-  const SYSTEM_PROMPT = buildSystemPrompt(calendarNames, defaultCalendar);
+export async function parseEventWithGemini(type, content, calendarNames = [], defaultCalendar = "Home", lastBatch = null) {
+  const SYSTEM_PROMPT = buildSystemPrompt(calendarNames, defaultCalendar, lastBatch);
   const preferredModel = process.env.GEMINI_MODEL?.trim();
   const modelCandidates = preferredModel
     ? [preferredModel, ...DEFAULT_MODEL_CANDIDATES.filter((m) => m !== preferredModel)]
@@ -152,8 +153,12 @@ function parseModelResponse(result) {
     const parsed = JSON.parse(objectMatch[0]);
 
     if (parsed.action === "update") {
-      if (!parsed.match?.title) {
-        throw new Error("Update response missing match criteria (title)");
+      if (parsed.match?.title && !parsed.match.titles) {
+        parsed.match.titles = [parsed.match.title];
+        delete parsed.match.title;
+      }
+      if (!parsed.match?.titles?.length) {
+        throw new Error("Update response missing match criteria (titles)");
       }
       if (!parsed.update || Object.keys(parsed.update).length === 0) {
         throw new Error("Update response missing fields to update");
