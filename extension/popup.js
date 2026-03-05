@@ -104,7 +104,7 @@ async function submitText(text) {
 async function sendToServer(type, content) {
   if (isProcessing) return;
   isProcessing = true;
-  setStatus("loading", "Creating calendar events...");
+  setStatus("loading", "Working on it...");
   disableInputs(true);
 
   try {
@@ -120,30 +120,11 @@ async function sendToServer(type, content) {
       throw new Error(data.error || "Server returned an error");
     }
 
-    const events = data.events;
-    const detailLines = events.map((evt) => {
-      const startDate = new Date(evt.start);
-      const dateStr = startDate.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-      const timeStr = evt.isAllDay
-        ? "All day"
-        : startDate.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-          });
-      let line = `<strong>${evt.title}</strong><br>${dateStr} · ${timeStr}`;
-      if (evt.location) line += ` · ${evt.location}`;
-      return line;
-    });
-
-    const heading = events.length === 1
-      ? "Event created!"
-      : `${events.length} events created!`;
-
-    setStatus("success", heading, detailLines.join("<hr>"));
+    if (data.action === "update") {
+      showUpdateResult(data);
+    } else {
+      showCreateResult(data.events);
+    }
 
     textInput.value = "";
     setTimeout(resetPreview, 2000);
@@ -156,6 +137,61 @@ async function sendToServer(type, content) {
     isProcessing = false;
     disableInputs(false);
   }
+}
+
+// --- Result display ---
+
+const FIELD_LABELS = {
+  title: "Title",
+  location: "Location",
+  notes: "Notes",
+  startDate: "Start",
+  endDate: "End",
+};
+
+function showCreateResult(events) {
+  const detailLines = events.map((evt) => {
+    const startDate = new Date(evt.start);
+    const dateStr = startDate.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    const timeStr = evt.isAllDay
+      ? "All day"
+      : startDate.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+    let line = `<strong>${evt.title}</strong><br>${dateStr} · ${timeStr}`;
+    if (evt.location) line += ` · ${evt.location}`;
+    return line;
+  });
+
+  const heading =
+    events.length === 1 ? "Event created!" : `${events.length} events created!`;
+
+  setStatus("success", heading, detailLines.join("<hr>"));
+}
+
+function showUpdateResult(data) {
+  if (data.updated === 0) {
+    setStatus("error", `No events found matching "${data.match.title}"`);
+    return;
+  }
+
+  const heading =
+    data.updated === 1 ? "1 event updated!" : `${data.updated} events updated!`;
+
+  const changes = Object.entries(data.updates)
+    .map(([key, val]) => `${FIELD_LABELS[key] || key} → ${val}`)
+    .join("<br>");
+
+  const unique = [...new Set(data.titles)];
+  let titleList = unique.slice(0, 5).map((t) => `• ${t}`).join("<br>");
+  if (unique.length > 5) titleList += `<br>• …and ${unique.length - 5} more`;
+
+  setStatus("success", heading, `${changes}<hr>${titleList}`);
 }
 
 // --- UI helpers ---

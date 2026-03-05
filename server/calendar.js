@@ -125,3 +125,71 @@ end tell`;
     calendar,
   };
 }
+
+export async function updateCalendarEvents(match, updates) {
+  const escapedTitle = escapeAppleScript(match.title);
+
+  const setLines = [];
+  if (updates.title !== undefined)
+    setLines.push(`set summary of evt to "${escapeAppleScript(updates.title)}"`);
+  if (updates.location !== undefined)
+    setLines.push(`set location of evt to "${escapeAppleScript(updates.location)}"`);
+  if (updates.notes !== undefined)
+    setLines.push(`set description of evt to "${escapeAppleScript(updates.notes)}"`);
+  if (updates.startDate !== undefined)
+    setLines.push(`set start date of evt to date "${formatAppleScriptDate(updates.startDate)}"`);
+  if (updates.endDate !== undefined)
+    setLines.push(`set end date of evt to date "${formatAppleScriptDate(updates.endDate)}"`);
+
+  if (setLines.length === 0) {
+    throw new Error("No fields to update");
+  }
+
+  let dateSetup = "";
+  let whoseClause = `summary contains "${escapedTitle}"`;
+
+  if (match.startAfter) {
+    dateSetup += `    set searchStart to date "${formatAppleScriptDate(match.startAfter)}"\n`;
+    whoseClause += " and start date >= searchStart";
+  }
+  if (match.startBefore) {
+    dateSetup += `    set searchEnd to date "${formatAppleScriptDate(match.startBefore)}"\n`;
+    whoseClause += " and start date <= searchEnd";
+  }
+
+  let calScope;
+  if (match.calendar) {
+    calScope = `set calList to {calendar "${escapeAppleScript(match.calendar)}"}`;
+  } else {
+    calScope = "set calList to calendars";
+  }
+
+  const script = `
+tell application "Calendar"
+    set updatedNames to {}
+${dateSetup}    ${calScope}
+    repeat with cal in calList
+        set evts to (every event of cal whose ${whoseClause})
+        repeat with evt in evts
+            ${setLines.join("\n            ")}
+            set end of updatedNames to summary of evt
+        end repeat
+    end repeat
+    set AppleScript's text item delimiters to "||"
+    return updatedNames as text
+end tell`;
+
+  try {
+    const { stdout } = await execFileAsync("osascript", ["-e", script]);
+    const raw = stdout.trim();
+    const titles = raw ? raw.split("||").map((t) => t.trim()).filter(Boolean) : [];
+    return { updated: titles.length, titles };
+  } catch (err) {
+    if (err.stderr?.includes("Not authorized")) {
+      throw new Error(
+        "macOS denied Calendar access. Go to System Settings > Privacy & Security > Automation and grant access."
+      );
+    }
+    throw new Error(`AppleScript failed: ${err.stderr || err.message}`);
+  }
+}

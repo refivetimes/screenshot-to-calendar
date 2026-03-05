@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { parseEventWithGemini } from "./gemini.js";
-import { createCalendarEvent, listCalendars } from "./calendar.js";
+import { createCalendarEvent, updateCalendarEvents, listCalendars } from "./calendar.js";
 
 dotenv.config({ path: "../.env" });
 
@@ -26,14 +26,27 @@ app.post("/create-event", async (req, res) => {
 
   try {
     const calendars = await listCalendars();
-    const eventsData = await parseEventWithGemini(type, content, calendars, defaultCalendar);
-    const results = [];
-    for (const eventData of eventsData) {
-      results.push(await createCalendarEvent(eventData));
+    const parsed = await parseEventWithGemini(type, content, calendars, defaultCalendar);
+
+    if (parsed.action === "update") {
+      const result = await updateCalendarEvents(parsed.match, parsed.update);
+      res.json({
+        success: true,
+        action: "update",
+        updated: result.updated,
+        titles: result.titles,
+        match: parsed.match,
+        updates: parsed.update,
+      });
+    } else {
+      const results = [];
+      for (const eventData of parsed.events) {
+        results.push(await createCalendarEvent(eventData));
+      }
+      res.json({ success: true, action: "create", events: results });
     }
-    res.json({ success: true, events: results });
   } catch (err) {
-    console.error("Error creating event:", err);
+    console.error("Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
