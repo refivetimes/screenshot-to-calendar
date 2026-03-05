@@ -19,7 +19,11 @@ function getClient() {
 
 function buildSystemPrompt(calendarNames, defaultCalendar, lastBatch) {
   const calendarLine = calendarNames.length > 0
-    ? `Available calendars: ${calendarNames.join(", ")}. You MUST pick one of these exact names for the "calendar" field. If unsure, use "${defaultCalendar}".`
+    ? `Available calendars: ${calendarNames.join(", ")}. You MUST pick one of these exact names for the "calendar" field.
+Choose the calendar that best fits the nature of the event:
+- Work/professional calendars: meetings, standups, interviews, 1:1s, sprint planning, conferences, work deadlines, Zoom/Teams calls
+- Personal/life calendars: doctor appointments, dentist, therapy, personal errands, social plans, family events
+Use the calendar name that most closely matches the category. If none clearly fits or you are unsure, use "${defaultCalendar}".`
     : `Default calendar name: "${defaultCalendar}".`;
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
