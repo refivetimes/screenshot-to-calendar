@@ -26,9 +26,12 @@ app.post("/create-event", async (req, res) => {
 
   try {
     const calendars = await listCalendars();
-    const eventData = await parseEventWithGemini(type, content, calendars, defaultCalendar);
-    const result = await createCalendarEvent(eventData);
-    res.json({ success: true, event: result });
+    const eventsData = await parseEventWithGemini(type, content, calendars, defaultCalendar);
+    const results = [];
+    for (const eventData of eventsData) {
+      results.push(await createCalendarEvent(eventData));
+    }
+    res.json({ success: true, events: results });
   } catch (err) {
     console.error("Error creating event:", err);
     res.status(500).json({ success: false, error: err.message });

@@ -28,12 +28,14 @@ Today's date is: ${new Date().toLocaleDateString("en-US", { weekday: "long", yea
 
 ${calendarLine}
 
-Return ONLY valid JSON (no markdown, no backticks, no explanation) with these fields:
+Return ONLY valid JSON (no markdown, no backticks, no explanation). The input may describe one or multiple events (e.g. a list of dates, a recurring pattern like "every Friday in March", or a screenshot showing several events). Always return a JSON array of event objects, even if there is only one event.
+
+Each event object has these fields:
 {
   "title": "string — event title/name",
   "startDate": "string — ISO 8601 format, e.g. 2026-02-26T14:00:00",
   "endDate": "string — ISO 8601 format, e.g. 2026-02-26T15:00:00. If not specified, set to 1 hour after startDate",
-  "location": "string or null — event location if mentioned",
+  "location": "string or null — event location. If a place name is mentioned (e.g. a restaurant, venue, office), resolve it to a full street address in the format 'Place Name, Street Address, City, State ZIP'. Use your knowledge to provide the real address when possible. If you cannot determine the full address, return the location as-is.",
   "notes": "string or null — any additional details, description, or context",
   "isAllDay": "boolean — true if the event is an all-day event",
   "calendar": "string — which calendar to add to, must be one of the available calendars listed above"
@@ -46,7 +48,9 @@ Rules:
 - If no end time or duration is given, default to 1 hour after the start time.
 - Extract location if mentioned anywhere in the text or visible in the screenshot.
 - Put any extra context or details in the notes field.
-- Return ONLY the JSON object, nothing else.`;
+- For recurring or repeating patterns (e.g. "every Friday at 6pm in March"), expand them into individual events for each occurrence.
+- If a screenshot shows multiple events, extract all of them.
+- Return ONLY the JSON array, nothing else.`;
 }
 
 export async function parseEventWithGemini(type, content, calendarNames = [], defaultCalendar = "Home") {
@@ -105,16 +109,24 @@ export async function parseEventWithGemini(type, content, calendarNames = [], de
 function parseModelResponse(result) {
   const text = result.response.text().trim();
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  const arrayMatch = text.match(/\[[\s\S]*\]/);
+  const objectMatch = text.match(/\{[\s\S]*\}/);
+
+  let events;
+  if (arrayMatch) {
+    events = JSON.parse(arrayMatch[0]);
+    if (!Array.isArray(events)) events = [events];
+  } else if (objectMatch) {
+    events = [JSON.parse(objectMatch[0])];
+  } else {
     throw new Error("Failed to parse event data from AI response");
   }
 
-  const eventData = JSON.parse(jsonMatch[0]);
-
-  if (!eventData.title || !eventData.startDate) {
-    throw new Error("AI response missing required fields (title, startDate)");
+  for (const event of events) {
+    if (!event.title || !event.startDate) {
+      throw new Error("AI response missing required fields (title, startDate)");
+    }
   }
 
-  return eventData;
+  return events;
 }

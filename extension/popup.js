@@ -104,7 +104,7 @@ async function submitText(text) {
 async function sendToServer(type, content) {
   if (isProcessing) return;
   isProcessing = true;
-  setStatus("loading", "Creating calendar event...");
+  setStatus("loading", "Creating calendar events...");
   disableInputs(true);
 
   try {
@@ -120,28 +120,30 @@ async function sendToServer(type, content) {
       throw new Error(data.error || "Server returned an error");
     }
 
-    const evt = data.event;
-    const startDate = new Date(evt.start);
-    const dateStr = startDate.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
+    const events = data.events;
+    const detailLines = events.map((evt) => {
+      const startDate = new Date(evt.start);
+      const dateStr = startDate.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      const timeStr = evt.isAllDay
+        ? "All day"
+        : startDate.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          });
+      let line = `<strong>${evt.title}</strong><br>${dateStr} · ${timeStr}`;
+      if (evt.location) line += ` · ${evt.location}`;
+      return line;
     });
-    const timeStr = evt.isAllDay
-      ? "All day"
-      : startDate.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
 
-    let details = `${dateStr} · ${timeStr}`;
-    if (evt.location) details += ` · ${evt.location}`;
+    const heading = events.length === 1
+      ? "Event created!"
+      : `${events.length} events created!`;
 
-    setStatus(
-      "success",
-      `Event created!`,
-      `<strong>${evt.title}</strong><br>${details}`
-    );
+    setStatus("success", heading, detailLines.join("<hr>"));
 
     textInput.value = "";
     setTimeout(resetPreview, 2000);
